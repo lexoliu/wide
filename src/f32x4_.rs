@@ -568,7 +568,7 @@ impl_simd_float! {
 
   #[inline]
   pub fn is_finite(self) -> Self {
-    let shifted_exp_mask = u32x4::from(0xFF000000);
+    let shifted_exp_mask = const { u32x4::splat(0xFF000000) };
     let u: u32x4 = cast(self);
     let shift_u = u << 1_u64;
     let out = !(shift_u & shifted_exp_mask).simd_eq(shifted_exp_mask);
@@ -1343,15 +1343,15 @@ impl_simd_float! {
     const_f32_as_f32x4!(LN2D_LO, -2.12194440e-4);
     // max_x = ln(f32::MAX) ≈ 88.7229, max_r = 127 (IEEE max normal exponent)
     // min_x = -149.5 ln(2) ≈ -103.63: min r for vm_pow2n subnormal
-    let max_x = f32x4::from(88.723);
-    let min_x = f32x4::from(-103.63);
+    let max_x = const { f32x4::splat(88.723) };
+    let min_x = const { f32x4::splat(-103.63) };
     // x < min_x: e^x underflows to 0 -- skip the entire pipeline
     let finite = self.is_finite();
     let neg_underflow = self.simd_lt(min_x) & finite;
     if neg_underflow.all() {
       return Self::ZERO;
     }
-    let max_r = f32x4::from(127.0);
+    let max_r = const { f32x4::splat(127.0) };
     let r = (self * Self::LOG2_E).round_ties_even();
     let big = r.simd_gt(max_r);
     let r_safe = big.select(max_r, r);
@@ -1938,11 +1938,11 @@ impl f32x4 {
     let c = cast::<_, i32x4>(a) << 23;
     let std_result = cast::<_, f32x4>(c);
 
-    let min_exp = f32x4::from(-126.0);
+    let min_exp = const { f32x4::splat(-126.0) };
     let is_sub = self.simd_lt(min_exp);
     if is_sub.any() {
-      let valid = self.simd_ge(f32x4::from(-149.0));
-      let shift_f = self + f32x4::from(149.0);
+      let valid = self.simd_ge(const { f32x4::splat(-149.0) });
+      let shift_f = self + const { f32x4::splat(149.0) };
       let mut shift_i = shift_f.trunc_int();
       shift_i = cast::<_, i32x4>(valid).select(shift_i, i32x4::ZERO);
       let mantissa = i32x4::ONE << shift_i;
@@ -1983,7 +1983,7 @@ impl f32x4 {
   }
   #[inline]
   fn infinity() -> Self {
-    cast::<_, f32x4>(i32x4::splat(0x7F800000))
+    cast::<_, f32x4>(const { i32x4::splat(0x7F800000) })
   }
   #[inline]
   fn nan_log() -> Self {
@@ -1991,7 +1991,7 @@ impl f32x4 {
   }
   #[inline]
   fn nan_pow() -> Self {
-    cast::<_, f32x4>(i32x4::splat(0x7FC00000 | 0x101 & 0x003FFFFF))
+    cast::<_, f32x4>(const { i32x4::splat(0x7FC00000 | 0x101 & 0x003FFFFF) })
   }
 
   /// Returns `[self[0], b[0], self[1], b[1]]`.
